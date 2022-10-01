@@ -2,6 +2,7 @@ package main
 
 import (
     "encoding/json"
+    "flag"
     "io/ioutil"
     "log"
     "net/http"
@@ -25,12 +26,22 @@ const serializableStereoType = "Serializable"
 
 func main() {
 
-    if len(os.Args) < 2 {
-        log.Fatal("usage: generator <hostname>")
-    }
-    url := os.Args[1]
+    var url string
+    flag.StringVar(
+        &url,
+        "url",
+        "",
+        "the hostnane of the the Sophos UTM appliance, e.g. https://firewall.example.net:4444/",
+    )
+    var path string
+    flag.StringVar(&path, "path", "generated", "The path where files will be generated, such as 'go-sophosutm'")
+    var packageName string
+    flag.StringVar(&packageName, "package", "sophosutm", "The package name, such as 'sophosutm'")
+
+    flag.Parse()
+
     if url == "" {
-        log.Fatal("usage: generator <hostname>")
+        log.Fatalln("usage: generator -url <hostname>")
     }
     // if url doesn't start with http then add prefix it with https
     if !strings.HasPrefix(url, "http") {
@@ -54,7 +65,7 @@ func main() {
     mb := NewModelBuilder()
     var model = mb.Build(schemaMap)
 
-    g := NewGoGenerator("generated", "sophosutm")
+    g := NewGoGenerator(path, packageName)
 
     g.Generate(model)
 
