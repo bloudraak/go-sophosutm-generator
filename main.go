@@ -37,7 +37,13 @@ func main() {
     flag.StringVar(&path, "path", "generated", "The path where files will be generated, such as 'go-sophosutm'")
     var packageName string
     flag.StringVar(&packageName, "package", "sophosutm", "The package name, such as 'sophosutm'")
-
+    var only string
+    flag.StringVar(
+        &only,
+        "only",
+        "",
+        "A regex pattern of schemas to generate, such as 'aaa.*'. When empty, all schemas are generated.",
+    )
     flag.Parse()
 
     if url == "" {
@@ -63,7 +69,7 @@ func main() {
     }
 
     mb := NewModelBuilder()
-    var model = mb.Build(schemaMap)
+    var model = mb.Build(schemaMap, only)
 
     g := NewGoGenerator(path, packageName)
 
@@ -135,10 +141,6 @@ func buildSchemaMap(schemas []*RemoteSchemaReference, url string) (
         schemaMap[schema] = &s
     }
     return schemaMap, err
-}
-
-func ShouldSkip(document *RemoteSchemaReference) bool {
-    return !strings.HasPrefix(document.Name, "aaa")
 }
 
 func downloadBytes(url string) ([]byte, error) {

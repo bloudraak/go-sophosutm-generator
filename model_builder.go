@@ -2,6 +2,7 @@ package main
 
 import (
     "log"
+    "regexp"
     "strings"
 
     "github.com/getkin/kin-openapi/openapi2"
@@ -13,10 +14,11 @@ var renameMap = map[string]string{
 }
 
 type ModelBuilder struct {
-    model *Model
+    model        *Model
+    skipPatterns []string
 }
 
-func (b *ModelBuilder) Build(m map[*RemoteSchemaReference]*openapi2.T) *Model {
+func (b *ModelBuilder) Build(m map[*RemoteSchemaReference]*openapi2.T, only string) *Model {
     schemaMap := m
     b.buildStereoTypes()
 
@@ -28,8 +30,14 @@ func (b *ModelBuilder) Build(m map[*RemoteSchemaReference]*openapi2.T) *Model {
 
     const operationsSuffix = " operations"
     for k, v := range schemaMap {
-        if ShouldSkip(k) {
-            continue
+        if only != "" {
+            match, err := regexp.MatchString(only, k.Name)
+            if err != nil {
+                log.Fatal(err)
+            }
+            if !match {
+                continue
+            }
         }
 
         b.buildClassesFromDefinitions(v)
@@ -238,6 +246,23 @@ func (b *ModelBuilder) Build(m map[*RemoteSchemaReference]*openapi2.T) *Model {
     return b.model
 }
 
+func (b *ModelBuilder) shouldSkip(k *RemoteSchemaReference) bool {
+    var shouldSkip bool
+    if b.skipPatterns != nil {
+        for _, s := range b.skipPatterns {
+            match, err := regexp.MatchString(s, k.Name)
+            if err != nil {
+                log.Fatal(err)
+            }
+            if match {
+                shouldSkip = true
+                break
+            }
+        }
+    }
+    return shouldSkip
+}
+
 func (b *ModelBuilder) trimDefinitionsPrefix(returnType string) string {
     if strings.HasPrefix(returnType, "#/definitions/") {
         returnType = strings.TrimPrefix(returnType, "#/definitions/")
@@ -261,17 +286,17 @@ func (b *ModelBuilder) buildClassFromSchema(name string, definition *openapi3.Sc
         WithPackageImport("encoding/json").
         WithPackageImport("log")
 
-    if isDefinition {
-        c.CreateProperty("_ref").
-            WithType("string").
-            WithStereoType(b.model.Stereotype(serializableStereoType))
-        c.CreateProperty("_locked").
-            WithType("string").
-            WithStereoType(b.model.Stereotype(serializableStereoType))
-        c.CreateProperty("_type").
-            WithType("string").
-            WithStereoType(b.model.Stereotype(serializableStereoType))
-    }
+    // if isDefinition {
+    //     c.CreateProperty("_ref").
+    //         WithType("string").
+    //         WithStereoType(b.model.Stereotype(serializableStereoType))
+    //     c.CreateProperty("_locked").
+    //         WithType("string").
+    //         WithStereoType(b.model.Stereotype(serializableStereoType))
+    //     c.CreateProperty("_type").
+    //         WithType("string").
+    //         WithStereoType(b.model.Stereotype(serializableStereoType))
+    // }
 
     return c
 
